@@ -55,7 +55,85 @@ Currently undergoing mainnet testing with framework release imminent.
 
 ## 📖 Documentation
 
-For complete documentation, setup guides, and examples, visit [docs.hmai.world](https://docs.hmai.world)
+
+# HMAI API Deployment Guide
+
+Simple guide for deploying HMAI API.
+
+## Quick Start
+
+Get code and setup:
+```bash
+# Clone repo
+git clone https://github.com/HMaiLab/HMAI.git
+cd HMAI/api
+
+# Setup environment
+cp .env.example .env
+pip install poetry
+poetry install
+
+# Init database
+poetry run prisma generate
+poetry run prisma db push
+
+# Start service
+poetry run uvicorn app.main:app --reload
+```
+
+For Docker deployment:
+```bash
+# Build and run with Docker
+docker build -t hmai-api .
+docker run -d -p 8000:8000 --env-file .env --name hmai-api hmai-api
+```
+
+Required environment variables in .env:
+```
+DATABASE_URL="postgresql://..."
+SUPABASE_URL="..."
+SUPABASE_KEY="..."
+OPENAI_API_KEY="..."
+```
+
+Project structure:
+```
+api/
+├── app/        # Main code
+├── prisma/     # Database
+├── supabase/   # Supabase config
+└── tests/      # Test files
+```
+
+Development commands:
+```bash
+# Format code
+./lint-and-format.sh
+# or
+make lint
+
+# Run tests  
+poetry run pytest
+# or
+make test
+
+# Database migrations
+poetry run prisma migrate dev
+poetry run prisma migrate deploy
+```
+
+Service endpoints:
+- API docs: http://localhost:8000/docs
+- Health check: http://localhost:8000/health
+- Metrics: http://localhost:8000/metrics
+
+Monitoring:
+- Log files in /var/log/hmai/
+- Health status at /health endpoint
+- Metrics dashboard at /metrics endpoint
+
+For support: support@hmai.world
+
 
 ## 🤝 Contributions
 
