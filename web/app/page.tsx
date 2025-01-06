@@ -1,136 +1,155 @@
-"use client"
+'use client';
 
-import { useEffect } from "react"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
-import { useForm } from "react-hook-form"
-import { RxGithubLogo } from "react-icons/rx"
-import * as z from "zod"
+import { zodResolver } from '@hookform/resolvers/zod';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { RxGithubLogo } from 'react-icons/rx';
+import * as z from 'zod';
 
-import { Button } from "@/components/ui/button"
+import Logo from '@/components/logo';
+import { Button } from '@/components/ui/button';
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
-import { Spinner } from "@/components/ui/spinner"
-import { Toaster } from "@/components/ui/toaster"
-import { useToast } from "@/components/ui/use-toast"
-import Logo from "@/components/logo"
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
+import { Spinner } from '@/components/ui/spinner';
+import { Toaster } from '@/components/ui/toaster';
+import { useToast } from '@/components/ui/use-toast';
+import { Api } from '@/lib/api';
 
 const formSchema = z.object({
-  email: z.string().email({
-    message: "Invalid email address.",
-  }),
-})
+	email: z.string().email({
+		message: 'Invalid email address.',
+	}),
+});
 
 export default function IndexPage() {
-  const supabase = createClientComponentClient()
-  const { toast } = useToast()
-  const { ...form } = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      email: "",
-    },
-  })
+	const supabase = createClientComponentClient();
+	const { toast } = useToast();
+	const { ...form } = useForm<z.infer<typeof formSchema>>({
+		resolver: zodResolver(formSchema),
+		defaultValues: {
+			email: '',
+		},
+	});
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    const { email } = values
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-    })
+	async function onSubmit(values: z.infer<typeof formSchema>) {
+		const { email } = values;
+		const { error } = await supabase.auth.signInWithOtp({
+			email,
+		});
 
-    if (error) {
-      toast({
-        description: `Ooops! ${error?.message}`,
-      })
+		if (error) {
+			toast({
+				description: `Ooops! ${error?.message}`,
+			});
 
-      return
-    }
+			return;
+		}
 
-    toast({
-      description: "🎉 Yay! Check your email for sign in link.",
-    })
-  }
+		toast({
+			description: '🎉 Yay! Check your email for sign in link.',
+		});
+	}
 
-  async function handleGithubLogin() {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "github",
-    })
+	async function handleGithubLogin() {
+		const { error } = await supabase.auth.signInWithOAuth({
+			provider: 'github',
+		});
 
-    if (error) {
-      toast({
-        description: `Ooops! ${error?.message}`,
-      })
+		if (error) {
+			toast({
+				description: `Ooops! ${error?.message}`,
+			});
 
-      return
-    }
-  }
+			return;
+		}
+	}
 
-  useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, _session) => {
-        if (event === "SIGNED_IN") {
-          window.location.href = "/workflows"
-        }
-      }
-    )
+	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+	useEffect(() => {
+		const { data: authListener } = supabase.auth.onAuthStateChange(
+			(event, _session) => {
+				if (event === 'SIGNED_IN') {
+					const fetchProfileAndIdentify = async () => {
+						const { data: profile } = await supabase
+							.from('profiles')
+							.select('*')
+							.eq('user_id', _session?.user.id)
+							.single();
+						if (profile.api_key) {
+							const api = new Api(profile.api_key);
+							await api.indentifyUser({
+								email: _session?.user.email,
+								firstName: profile.first_name,
+								lastName: profile.last_name,
+								company: profile.company,
+							});
+						}
+						window.location.href = '/workflows';
+					};
+					fetchProfileAndIdentify();
+				}
+			},
+		);
 
-    return () => {
-      authListener.subscription.unsubscribe()
-    }
-  }, [supabase.auth])
+		return () => {
+			authListener.subscription.unsubscribe();
+		};
+	}, [supabase.auth]);
 
-  return (
-    <section className="container flex h-screen max-w-md flex-col justify-center space-y-8">
-      <Logo width={50} height={50} />
-      <div className="flex flex-col space-y-0">
-        <p className="text-lg font-bold">Login to hmai</p>
-        <p className="text-sm text-muted-foreground">
-          Enter your email to receive a one-time password
-        </p>
-      </div>
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="w-full space-y-4"
-        >
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormControl>
-                  <Input placeholder="Enter your email" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <Button type="submit" size="sm" className="w-full">
-            {form.control._formState.isSubmitting ? (
-              <Spinner />
-            ) : (
-              "Send password"
-            )}
-          </Button>
-        </form>
-      </Form>
-      <Separator />
-      <Button
-        variant="secondary"
-        size="sm"
-        className="space-x-4"
-        onClick={handleGithubLogin}
-      >
-        <RxGithubLogo size={20} />
-        <p>Sign in with Github</p>
-      </Button>
-      <Toaster />
-    </section>
-  )
+	return (
+		<section className="container flex h-screen max-w-md flex-col justify-center space-y-8">
+			<Logo width={50} height={50} />
+			<div className="flex flex-col space-y-0">
+				<p className="text-lg font-bold">Login to hmai</p>
+				<p className="text-sm text-muted-foreground">
+					Enter your email to receive a one-time password
+				</p>
+			</div>
+			<Form {...form}>
+				<form
+					onSubmit={form.handleSubmit(onSubmit)}
+					className="w-full space-y-4"
+				>
+					<FormField
+						control={form.control}
+						name="email"
+						render={({ field }) => (
+							<FormItem>
+								<FormControl>
+									<Input placeholder="Enter your email" {...field} />
+								</FormControl>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+					<Button type="submit" size="sm" className="w-full">
+						{form.control._formState.isSubmitting ? (
+							<Spinner />
+						) : (
+							'Send password'
+						)}
+					</Button>
+				</form>
+			</Form>
+			<Separator />
+			<Button
+				variant="secondary"
+				size="sm"
+				className="space-x-4"
+				onClick={handleGithubLogin}
+			>
+				<RxGithubLogo size={20} />
+				<p>Sign in with Github</p>
+			</Button>
+			<Toaster />
+		</section>
+	);
 }
