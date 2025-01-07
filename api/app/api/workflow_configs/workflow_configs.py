@@ -10,18 +10,16 @@ from pydantic import ValidationError
 
 from app.api.workflow_configs.api.api_agent_manager import ApiAgentManager
 from app.api.workflow_configs.api.api_manager import ApiManager
-from app.api.workflow_configs.exceptions import (
+from app.api.workflow_configs.data_transformer import (
     MissingVectorDatabaseProvider,
+    UnknownLLMProvider,
     UnkownFileType,
 )
-from app.api.workflow_configs.processors.agent_processor import AgentProcessor
 from app.api.workflow_configs.saml_schema import WorkflowConfigModel
-from app.api.workflow_configs.validator import (
-    RepeatedNameError,
-    UnknownLLMProvider,
-)
 from app.utils.api import get_current_api_user
 from app.utils.prisma import prisma
+
+from .processors.agent_processor import AgentProcessor
 
 SEGMENT_WRITE_KEY = config("SEGMENT_WRITE_KEY", None)
 
@@ -82,7 +80,6 @@ async def add_config(
             MissingVectorDatabaseProvider,
             UnkownFileType,
             UnknownLLMProvider,
-            RepeatedNameError,
         ) as e:
             logger.exception(e)
             return JSONResponse(
