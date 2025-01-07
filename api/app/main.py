@@ -35,7 +35,7 @@ app = FastAPI(
     title="hmai",
     docs_url="/",
     description="The Open Source AI Assistant Framework & API",
-    version="0.2.0",
+    version="0.2.3",
     servers=[{"url": "https://api.beta.hmai.sh"}],
 )
 

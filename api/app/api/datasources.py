@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.datasource.flow import delete_datasource, vectorize_datasource
 from app.models.request import Datasource as DatasourceRequest
+from app.models.request import EmbeddingsModelProvider
 from app.models.response import (
     Datasource as DatasourceResponse,
 )
@@ -58,7 +59,7 @@ async def create(
         data = await prisma.datasource.create(
             {
                 "apiUserId": api_user.id,
-                **body.dict(),
+                **body.dict(exclude={"embeddingsModelProvider"}),
             }
         )
 
@@ -66,6 +67,7 @@ async def create(
             datasource: Datasource,
             options: Optional[dict],
             vector_db_provider: Optional[str],
+            embeddings_model_provider: EmbeddingsModelProvider,
         ):
             try:
                 await vectorize_datasource(
@@ -73,6 +75,7 @@ async def create(
                     # vector db configurations (api key, index name etc.)
                     options=options,
                     vector_db_provider=vector_db_provider,
+                    embeddings_model_provider=embeddings_model_provider,
                 )
             except Exception as flow_exception:
                 await prisma.datasource.update(
@@ -85,9 +88,10 @@ async def create(
             run_vectorize_flow(
                 datasource=data,
                 options=vector_db.options if vector_db is not None else {},
-                vector_db_provider=vector_db.provider
-                if vector_db is not None
-                else None,
+                vector_db_provider=(
+                    vector_db.provider if vector_db is not None else None
+                ),
+                embeddings_model_provider=body.embeddingsModelProvider,
             )
         )
         return {"success": True, "data": data}
@@ -156,7 +160,7 @@ async def update(
             analytics.track(api_user.id, "Updated Datasource")
         data = await prisma.datasource.update(
             where={"id": datasource_id},
-            data=body.dict(),
+            data=body.dict(exclude_unset=True),
         )
         return {"success": True, "data": data}
     except Exception as e:
@@ -195,9 +199,9 @@ async def delete(datasource_id: str, api_user=Depends(get_current_api_user)):
             run_delete_datasource_flow(
                 datasource_id=datasource_id,
                 options=datasource.vectorDb.options if datasource.vectorDb else {},
-                vector_db_provider=datasource.vectorDb.provider
-                if datasource.vectorDb
-                else None,
+                vector_db_provider=(
+                    datasource.vectorDb.provider if datasource.vectorDb else None
+                ),
             )
         )
         # deleting datasources and agentdatasources if there are not any errors
