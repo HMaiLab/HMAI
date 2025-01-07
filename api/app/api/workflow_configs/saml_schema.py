@@ -1,11 +1,7 @@
-# flake8: noqa
 from enum import Enum
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field, validator
-from app.models.request import LLMParams
-
-from prisma.enums import LLMProvider
 
 
 class SuperragEncoderType(str, Enum):
@@ -13,12 +9,8 @@ class SuperragEncoderType(str, Enum):
 
 
 class SuperragEncoder(BaseModel):
-    type: SuperragEncoderType = Field(
-        description="The provider of encoder to use for the index. e.g. `openai`"
-    )
-    name: str = Field(
-        description="The model name to use for the encoder. e.g. `text-embedding-3-small` for OpenAI's model"
-    )
+    type: SuperragEncoderType
+    name: str
     dimensions: int
 
 
@@ -26,7 +18,6 @@ class SuperragDatabaseProvider(str, Enum):
     pinecone = "pinecone"
     weaviate = "weaviate"
     qdrant = "qdrant"
-    pgvector = "pgvector"
 
 
 class SuperragIndex(BaseModel):
@@ -34,12 +25,11 @@ class SuperragIndex(BaseModel):
     urls: list[str]
     use_for: str
     encoder: Optional[SuperragEncoder] = Field(
-        description="The encoder to use for the index"
+        ..., description="The encoder to use for the index"
     )
     database_provider: Optional[SuperragDatabaseProvider] = Field(
-        description="The vector database provider to use for the index"
+        ..., description="The vector database provider to use for the index"
     )
-    interpreter_mode: Optional[bool] = False
 
     @validator("name")
     def name_too_long(v):
@@ -81,15 +71,10 @@ class ToolModel(BaseModel):
     algolia: Optional[Tool]
     metaphor: Optional[Tool]
     function: Optional[Tool]
-    research: Optional[Tool]
-    sec: Optional[Tool]
     # ~~~~~~Assistants as tools~~~~~~
-    superagent: Optional["SuperagentAgentTool"]
-    openai_assistant: Optional["OpenAIAgentTool"]
-    llm: Optional["LLMAgentTool"]
-    scraper: Optional[Tool]
-    advanced_scraper: Optional[Tool]
-    google_search: Optional[Tool]
+    superagent: Optional["AgentTool"]
+    openai_assistant: Optional["AgentTool"]
+    llm: Optional["AssistantTool"]
 
     # OpenAI Assistant tools
     code_interpreter: Optional[Tool]
@@ -105,39 +90,23 @@ class Assistant(BaseModel):
     llm: str
     prompt: str
     intro: Optional[str]
-    params: Optional[LLMParams]
-    output_schema: Optional[Any]
 
 
-# ~~~Agents~~~
-class SuperagentAgent(Assistant):
+class Agent(Assistant):
     tools: Optional[Tools]
-    data: Optional[Data] = Field(description="Deprecated! Use `superrag` instead.")
+    data: Optional[Data]
     superrag: Optional[Superrag]
 
 
-class LLMAgent(Assistant):
-    tools: Optional[Tools]
-    superrag: Optional[Superrag]
-
-
-class OpenAIAgent(Assistant):
-    pass
-
-
-class BaseAgentToolModel(BaseModel):
+class BaseAssistantToolModel(BaseModel):
     use_for: str
 
 
-class SuperagentAgentTool(BaseAgentToolModel, SuperagentAgent):
+class AgentTool(BaseAssistantToolModel, Agent):
     pass
 
 
-class OpenAIAgentTool(BaseAgentToolModel, OpenAIAgent):
-    pass
-
-
-class LLMAgentTool(BaseAgentToolModel, LLMAgent):
+class AssistantTool(BaseAssistantToolModel, Assistant):
     pass
 
 
@@ -145,31 +114,11 @@ class LLMAgentTool(BaseAgentToolModel, LLMAgent):
 # for assistant as tools
 ToolModel.update_forward_refs()
 
-SAML_OSS_LLM_PROVIDERS = [
-    LLMProvider.PERPLEXITY.value,
-    LLMProvider.TOGETHER_AI.value,
-    LLMProvider.ANTHROPIC.value,
-    LLMProvider.BEDROCK.value,
-    LLMProvider.GROQ.value,
-    LLMProvider.MISTRAL.value,
-    LLMProvider.COHERE_CHAT.value,
-]
-
 
 class Workflow(BaseModel):
-    superagent: Optional[SuperagentAgent]
-    openai_assistant: Optional[OpenAIAgent]
-    # ~~OSS LLM providers~~
-    perplexity: Optional[LLMAgent]
-    together_ai: Optional[LLMAgent]
-    bedrock: Optional[LLMAgent]
-    groq: Optional[LLMAgent]
-    mistral: Optional[LLMAgent]
-    cohere_chat: Optional[LLMAgent]
-    anthropic: Optional[LLMAgent]
-    llm: Optional[LLMAgent] = Field(
-        description="Deprecated! Use LLM providers instead. e.g. `perplexity` or `together_ai`"
-    )
+    superagent: Optional[Agent]
+    openai_assistant: Optional[Assistant]
+    llm: Optional[Assistant]
 
 
 class WorkflowConfigModel(BaseModel):
