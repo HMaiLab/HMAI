@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AlgoliaInput(BaseModel):
@@ -9,6 +9,10 @@ class AlgoliaInput(BaseModel):
 
 
 class DatasourceInput(BaseModel):
+    question: str
+
+
+class SuperRagInput(BaseModel):
     question: str
 
 
@@ -57,7 +61,7 @@ class E2BCodeExecutorInput(BaseModel):
 
 
 class BrowserInput(BaseModel):
-    url: str
+    url: str = Field(..., description="A valid url including protocol to analyze")
 
 
 class GPTVisionInputModel(BaseModel):
@@ -87,6 +91,24 @@ class FunctionInput(BaseModel):
 
 
 class HTTPInput(BaseModel):
-    url: Optional[str] = None
-    method: Optional[str] = None
     body: Optional[dict] = {}
+
+
+class TavilyInput(BaseModel):
+    query: str
+
+
+class ScraperInput(BaseModel):
+    url: str
+
+
+class AdvancedScraperInput(BaseModel):
+    url: str
+
+
+class GoogleSearchInput(BaseModel):
+    query: str
+
+
+class SECInput(BaseModel):
+    ticker: str = Field(..., description="The stock ticker symbol for the company")

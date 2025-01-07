@@ -1,7 +1,8 @@
+from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from openai.types.beta.assistant_create_params import Tool as OpenAiAssistantTool
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, validator
 
 from prisma.enums import AgentType, LLMProvider, VectorDbProvider
 
@@ -11,6 +12,11 @@ class ApiUser(BaseModel):
     firstName: Optional[str]
     lastName: Optional[str]
     company: Optional[str]
+    anonymousId: Optional[str]
+
+
+class ApiKey(BaseModel):
+    name: str
 
 
 class OpenAiAssistantParameters(BaseModel):
@@ -26,10 +32,12 @@ class Agent(BaseModel):
     prompt: Optional[str]
     llmModel: Optional[str]
     llmProvider: Optional[LLMProvider]
-    description: Optional[str] = "An helpful agent."
+    description: Optional[str] = "a helpful agent."
     avatar: Optional[str]
-    type: Optional[AgentType] = AgentType.hmai
+    type: Optional[AgentType] = AgentType.SUPERAGENT
     parameters: Optional[OpenAiAssistantParameters]
+    metadata: Optional[dict]
+    outputSchema: Optional[str]
 
 
 class AgentUpdate(BaseModel):
@@ -42,6 +50,7 @@ class AgentUpdate(BaseModel):
     avatar: Optional[str]
     type: Optional[str]
     metadata: Optional[Dict[str, Any]]
+    outputSchema: Optional[str]
 
 
 class AgentLLM(BaseModel):
@@ -53,8 +62,20 @@ class AgentDatasource(BaseModel):
 
 
 class LLMParams(BaseModel):
-    max_tokens: int
-    temperature: float
+    max_tokens: Optional[int]
+    temperature: Optional[float] = 0.5
+
+    @validator("max_tokens")
+    def max_tokens_greater_than_1(v):
+        if v < 1:
+            raise ValueError("max_tokens must be greater than 1")
+        return v
+
+    @validator("temperature")
+    def temperature_between_0_and_2(v):
+        if v < 0 or v > 2:
+            raise ValueError("temperature must be between 0 and 2")
+        return v
 
 
 class AgentInvoke(BaseModel):
@@ -65,10 +86,28 @@ class AgentInvoke(BaseModel):
     llm_params: Optional[LLMParams]
 
 
+class EmbeddingsModelProvider(str, Enum):
+    OPENAI = "OPENAI"
+    AZURE_OPENAI = "AZURE_OPENAI"
+
+
 class Datasource(BaseModel):
     name: str
-    description: str
+    description: Optional[str]
     type: str
+    content: Optional[str]
+    url: Optional[str]
+    metadata: Optional[Dict[Any, Any]]
+    vectorDbId: Optional[str]
+    embeddingsModelProvider: Optional[
+        EmbeddingsModelProvider
+    ] = EmbeddingsModelProvider.OPENAI
+
+
+class DatasourceUpdate(BaseModel):
+    name: Optional[str]
+    description: Optional[str]
+    type: Optional[str]
     content: Optional[str]
     url: Optional[str]
     metadata: Optional[Dict[Any, Any]]
@@ -77,10 +116,18 @@ class Datasource(BaseModel):
 
 class Tool(BaseModel):
     name: str
-    description: Optional[str] = "An helpful tool."
+    description: Optional[str] = "a helpful tool."
     type: str
     metadata: Optional[Dict[Any, Any]]
     returnDirect: Optional[bool] = False
+
+
+class ToolUpdate(BaseModel):
+    name: Optional[str]
+    description: Optional[str]
+    type: Optional[str]
+    metadata: Optional[Dict[Any, Any]]
+    returnDirect: Optional[bool]
 
 
 class AgentTool(BaseModel):
@@ -107,6 +154,21 @@ class WorkflowInvoke(BaseModel):
     input: str
     enableStreaming: bool
     sessionId: Optional[str]
+    outputSchemas: Optional[dict[str, str]] = Field(default_factory=dict)
+    """A dictionary of step_id to output_schema 
+        
+        Example:
+        ```
+        {
+            "step_id_1": "your output schema",
+            "step_id_2": "your output schema"
+        }
+        ```
+    """
+    outputSchema: Optional[str]
+    """The output schema that will be used for only the final output, 
+    if output schema for last step is defined in outputSchemas, 
+    it will be used instead of this one."""
 
 
 class VectorDb(BaseModel):
